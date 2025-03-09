@@ -56,7 +56,6 @@ Ontology Viewer is a simple Streamlit-based application designed to visualize an
 
 ![Property_Detail](./resources//screenshots//property_detail.png)
 
-
 ## Contributing
 Contributions are welcome! Please fork the repository and submit pull requests.
 
@@ -73,3 +72,10 @@ The project requires the following dependencies:
 - streamlit_echarts==0.4.0
 - streamlit_extras==0.5.5
 - streamlit_pydantic==0.6.0
+
+## To Do List
+- [ ] <span style="color:gray;">Add support for SKOS-based semantics.</span>
+- [ ] <span style="color:gray;">Add SPARQL query functionality.</span>
+- [ ] <span style="color:gray;">Add functionality to create new classes.</span>
+- [ ] <span style="color:gray;">Add functionality to create new properties.</span>
+- [ ] <span style="color:gray;">Add functionality to display and set domain and range for properties.</span>
