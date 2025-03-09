@@ -1,0 +1,26 @@
+*.log
+*.log.*
+*.bak
+logs
+
+#/configs/*.py
+.vscode/
+
+# below are standard python ignore files
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+.tmp/
+
+secrets.toml
