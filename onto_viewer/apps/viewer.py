@@ -8,43 +8,17 @@ from pydantic import BaseModel, Field, PrivateAttr
 from typing import Optional, List, Dict, Any, Literal, Union
 
 import pandas as pd
-import networkx as nx
-import pyvis.network as net
 import rdflib
 from rdflib import RDF, RDFS, OWL
-import ifcopenshell
 import os
-import logging
-import re
 
-import matplotlib.pyplot as plt
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
-plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
+from ..utils import EchartsUtility, GraphAlgoUtility
 
-import cse_core.conceptual_defn
-from cse_core.frontend.agents.langgraph_agents import AgentEnum, BaseAgent
-import cse_core.conceptual_defn.information_entity
-from cse_core.conceptual_defn.namespaces import bind_prefixes, DOLCE_ULTRA_LITE
-from cse_core.conceptual_defn.ontology import define_ontology, ontology as DRSLEO_info
+from .base import StreamlitBaseApp
 
-from cse_core.server.databases.graph_stores import OntotextGraphDBGraph, RDFLibGraphStore
+class OntoViewerApp(StreamlitBaseApp):
+    """Ontology Viewer App"""
 
-from cse_core.utils import EchartsUtility, GraphAlgoUtility
-
-from .base import StreamlitBaseApp, setup_logging
-
-class BONTApp(StreamlitBaseApp):
-    """Building Ontology Navigator"""
-    app_name: str = "Building Ontology Navigator"
-    app_description: str = "Building Ontology Navigator"
-    app_icon: str = "🏗️"
-    app_logo: str = "Not available yet"
-    app_color: str = "#008080"
-    app_version: str = "0.0.1"
-    app_author: str = "Zeyu Pan"
-    app_author_email: str = "panzeyu@sjtu.edu.cn"
-    app_license: str = "MIT"
-    
     #region Graph Status Page
     @st.fragment
     def graph_status_subpage_render_namespaces(self):
@@ -232,8 +206,7 @@ class BONTApp(StreamlitBaseApp):
                 "value": clss
             })
     
-    
-    def graph_status_subpage_render_class_hierarchy(self):
+    def graph_status_subpage_render_class_hierarchy(self, option_to_label_visualization: bool=False):
         echarts_graph_info = {}
         echarts_graph_info["nodes"] = []
         echarts_graph_info["links"] = []
@@ -248,7 +221,7 @@ class BONTApp(StreamlitBaseApp):
         
         # echarts_graph_info["label"] = 
         s = st_echarts(
-            EchartsUtility.create_normal_echart_options(echarts_graph_info, f"Class Hierarchy\n\nTotal:{len(type_list)}", label_visible=False), 
+            EchartsUtility.create_normal_echart_options(echarts_graph_info, f"Class Hierarchy\n\nTotal:{len(type_list)}", label_visible=option_to_label_visualization), 
             height="500px",
             events={
                 "click": "function(params) { return params.value }",
@@ -256,7 +229,7 @@ class BONTApp(StreamlitBaseApp):
         )
         return s
     
-    def graph_status_subpage_render_property_hierarchy(self):
+    def graph_status_subpage_render_property_hierarchy(self, option_to_label_visualization: bool=False):
         echarts_graph_info = {}
         echarts_graph_info["nodes"] = []
         echarts_graph_info["links"] = []
@@ -276,7 +249,7 @@ class BONTApp(StreamlitBaseApp):
         self._graph_status_subpage_get_inheritance_map(echarts_graph_info, RDFS.subPropertyOf, props_to_df["URIRef"])
         
         s = st_echarts(
-            EchartsUtility.create_normal_echart_options(echarts_graph_info, f"Property Hierarchy\n\nTotal:{len(props_to_df['URIRef'])}", label_visible=False), 
+            EchartsUtility.create_normal_echart_options(echarts_graph_info, f"Property Hierarchy\n\nTotal:{len(props_to_df['URIRef'])}", label_visible=option_to_label_visualization), 
             height="500px",
             events={
                 "click": "function(params) { return params.value }",
@@ -327,30 +300,9 @@ class BONTApp(StreamlitBaseApp):
             grid.metric(label="数据属性数量", value=len(self.properties["DatatypeProperty"]))
             grid.metric(label="注释属性数量", value=len(self.properties["AnnotationProperty"]))
             grid.container()
+            self.export_ontology_widget(st.sidebar)
     
     def graph_status_subpage_display_metadata(self, node_iri, container):
-        import asyncio
-        from langchain_core.documents import Document
-        from langchain_core.messages import AIMessage
-        async def render_results(agent: BaseAgent, documents: List[Document]):
-            """Render results from the agent."""
-            results = []
-            async for wrapped_data in agent.astream(documents, None):
-                content = ""
-                if type(wrapped_data[1]).__name__ == "list":
-                    for elem in wrapped_data[1]:
-                        content += str(elem)+"\n\n"
-                        if type(elem).__name__ == "tuple":
-                            for sub_elem in elem:
-                                st.write(sub_elem, unsafe_allow_html=True)
-                        else:
-                            st.write(elem, unsafe_allow_html=True)
-                else:
-                    content += str(wrapped_data[1])
-                    st.write(wrapped_data[1])
-                results.append(AIMessage(content=content))
-            return results
-        
         node_iri = rdflib.URIRef(node_iri)
         metadata = ""
         metadata += f"**Local Name:** {node_iri.n3(self.ontology_graph.namespace_manager)}\n\n"
@@ -365,22 +317,12 @@ class BONTApp(StreamlitBaseApp):
             # st.markdown(f"**Comment:** {comment}")
             metadata += f"**Comment:** {comment}\n\n"
         # response_placeholder = st.empty()
-        with container.popover("元数据", use_container_width=True):
+        with container.container(height=500):
             st.markdown(metadata)
-        if container.button("生成描述", use_container_width=True):
-            with container.container(height=400):
-                prompt_text = f"请根据以下元数据生成一个中文描述，尽量简约且结构化，富有设计感。不必解释渲染过程，只输出渲染文本。\n\nMetadata:{metadata}"
-            
-                with st.spinner("生成描述中...", show_time=True):
-                    response = asyncio.run(render_results(self.chat_agent, [Document(page_content=prompt_text)]))
-                # for response in response:
-                #     st.markdown(response.content)
-                
-                # self.process_user_input(response_placeholder, metadata, self.chat_agent)
-    
+        
     def parse_dul_owl_widget(self, container):
         with container:
-            DUL_File = st.file_uploader("Upload DUL File", type=["ttl", "rdf", "owl"])
+            DUL_File = st.file_uploader("Upload Ontology File", type=["ttl", "rdf", "owl"])
             if DUL_File is not None:
                 ext = os.path.splitext(DUL_File.name)[1]
                 if ext == ".ttl":
@@ -393,63 +335,29 @@ class BONTApp(StreamlitBaseApp):
                 file_content = DUL_File.read().decode("utf-8")
                 # 使用rdflib库解析字符串为RDF图对象
                 g = rdflib.Graph()
-                define_ontology(g)
                 g.parse(data=file_content, format=format)
-                bind_prefixes(g)
                 # 将RDF图对象存储在session_state中
                 st.session_state["ontology_graph"] = g
                 st.rerun()
-                
-    def import_drsleo_classes_widget(self, container):
-        import inspect
-        import pkgutil
-        from cse_core.conceptual_defn.base import NamedIndividual
-        import cse_core
-        with container:
-            if st.button("导入DRSLEO定义的类型", use_container_width=True):
-                with st.spinner('正在导入DRSLEO定义的类型...', show_time=True):
-                    # 遍历当前库中的类声明，将其添加到Graph中
-                    inheritance_map = {}
-                    def find_subclasses(package):
-                        walked_modules = set()
-                        for loader, name, is_pkg in pkgutil.walk_packages(package.__path__):
-                            if name in walked_modules:
-                                continue
-                            module = loader.find_module(name).load_module(name)
-                            walked_modules.add(name)
-                            
-                            for name, obj in inspect.getmembers(module, inspect.isclass):
-                                if NamedIndividual.__name__ in [ii.__name__ for ii in inspect.getmro(obj)] and obj is not NamedIndividual:
-                                    super_class = [ii._type_iri_cls.default for ii in obj.__bases__][0]
-                                    if super_class not in inheritance_map:
-                                        inheritance_map[super_class] = set()
-                                    inheritance_map[super_class].add(obj._type_iri_cls.default)
-                    
-                    find_subclasses(cse_core)
-                    for acls, subclasses in inheritance_map.items():
-                        for subclass in subclasses:
-                            if subclass.startswith(DOLCE_ULTRA_LITE):
-                                continue
-                            self.ontology_graph.add((acls, RDF.type, OWL.Class))
-                            self.ontology_graph.add((subclass, RDF.type, OWL.Class))
-                            self.ontology_graph.add((subclass, RDFS.subClassOf, acls))
-    
+        
     def export_ontology_widget(self, container):
         with container:
             out_dir = st.text_input("输出目录", value="./dbs/rdflib_graph")
             if not os.path.isdir(out_dir):
                 os.makedirs(out_dir)
-            if st.button("导出DRSLEO本体", use_container_width=True):
-                with st.spinner('正在导出DRSLEO本体...', show_time=True):
+            if st.button("另存为", use_container_width=True):
+                with st.spinner('正在导出本体...', show_time=True):
                     self.ontology_graph.serialize(
-                        destination=os.path.join(out_dir, "drsleo.ttl"), 
+                        destination=os.path.join(out_dir, "ontology.ttl"), 
                         format="turtle",
                         encoding="utf-8"
                     )
     
     @st.fragment
     def graph_status_subpage_visualization(self):
-        option_to_visualize = st.selectbox("选择要可视化的内容", ["类继承关系", "属性继承关系"])
+        grid = st_grid([5, 1])
+        option_to_visualize = grid.selectbox("选择要可视化的内容", ["类继承关系", "属性继承关系"], label_visibility="collapsed")
+        option_to_label_visualization = grid.checkbox("是否显示标签")
         
         grid = st_grid([2, 1])
         
@@ -459,28 +367,34 @@ class BONTApp(StreamlitBaseApp):
             # if st.button("可视化", use_container_width=True):
             with st.spinner("正在生成图...", show_time=True):
                 if option_to_visualize == "类继承关系":
-                    selected_iri = self.graph_status_subpage_render_class_hierarchy()   # Echarts方式
+                    selected_iri = self.graph_status_subpage_render_class_hierarchy(option_to_label_visualization)   # Echarts方式
                 elif option_to_visualize == "属性继承关系":
-                    selected_iri = self.graph_status_subpage_render_property_hierarchy()
+                    selected_iri = self.graph_status_subpage_render_property_hierarchy(option_to_label_visualization)
                 st.success("已生成图！")
         if selected_iri:
             self.graph_status_subpage_display_metadata(selected_iri, info_col)
-        
+
+    def graph_status_subpage_render_original_file(self):
+        hide_file = st.checkbox("隐藏原文件", value=False)
+        if not hide_file:
+            self.display_rdf_data_widget(st.container(), self.ontology_graph)
+    
     def graph_status_subpage(self):
         # 占位：边栏
         with st.sidebar:
             sidetab1, sidetab2 = st.tabs(["基本信息", "开发者信息"])
+            
         self.graph_status_subpage_display_graph_basic_info_widget(sidetab1)
-        self.import_drsleo_classes_widget(sidetab1)
-        
         self.display_creator_widget(sidetab2)
+        with st.sidebar:
+            if st.button("重置查看器", type="primary", use_container_width=True):
+                st.session_state["ontology_graph"] = None
+                st.rerun()
         # 占位： 主页面
         main_col = st.container()
         with main_col:
-            maintab1, maintab2, maintab3, maintab4, maintab5, maintab6 = st.tabs(["本体可视化", "命名空间", "类", "属性", "日志", "测试"])
+            maintab1, maintab2, maintab3, maintab4, maintab5 = st.tabs(["本体可视化", "命名空间", "类", "属性", "原文件内容"])
             
-        st.session_state["streamlit_logger"] = setup_logging(maintab5)
-        
         with maintab1.container():
             self.graph_status_subpage_visualization()
         
@@ -493,8 +407,9 @@ class BONTApp(StreamlitBaseApp):
         with maintab4.container():
             self.graph_status_subpage_render_properties()
             
-        with maintab6.container():
-            self.test_widget()
+        with maintab5.container():
+            self.graph_status_subpage_render_original_file()
+
     #endregion
     
     def test_widget(self):
@@ -520,10 +435,6 @@ class BONTApp(StreamlitBaseApp):
     def properties(self) -> Dict[str, List[str]]:
         return self._properties
     
-    @property
-    def chat_agent(self) -> BaseAgent:
-        return st.session_state["agents"][AgentEnum.CHAT.value]
-    
     def run(self):
         if st.session_state.get("ontology_graph", None) is None:
             self.parse_dul_owl_widget(st.sidebar)
@@ -541,6 +452,7 @@ class BONTApp(StreamlitBaseApp):
             
         if subpage_option == "图谱状态":
             self.graph_status_subpage()
+            
         # elif subpage_option == "变更类":
         #     self.change_classes_widget()
         # elif subpage_option == "变更属性":
@@ -548,4 +460,4 @@ class BONTApp(StreamlitBaseApp):
         # elif subpage_option == "变更日志":
         #     self.change_log_widget()
         
-        self.export_ontology_widget(st.sidebar)
+        

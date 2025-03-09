@@ -1,11 +1,5 @@
 import streamlit as st
-from streamlit.delta_generator import DeltaGenerator
-from streamlit_extras.grid import grid as st_grid
-import os
 import logging
-import time
-import requests
-import uuid
 
 from typing import List, Dict, Annotated
 from pydantic import BaseModel, Field, PrivateAttr, computed_field
@@ -88,7 +82,6 @@ class StreamlitBaseApp(BaseModel):
                 # 然后使用Streamlit的write函数在展开区域中显示格式化后的Turtle字符串
                 st.write(wrap_turtle_string(graph.serialize(format="turtle")))
   
-    @timer_wrapper
     def model_post_init(self, __context):
         logging.info("[APP] " +f" New app of {self.__class__.__name__} started ")
         
