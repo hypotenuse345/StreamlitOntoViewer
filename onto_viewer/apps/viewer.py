@@ -336,7 +336,14 @@ class OntoViewerApp(StreamlitBaseApp):
                 # 使用rdflib库解析字符串为RDF图对象
                 g = rdflib.Graph()
                 g.parse(data=file_content, format=format)
+                g.bind("dul", rdflib.Namespace("http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#"))
                 # 将RDF图对象存储在session_state中
+                st.session_state["ontology_graph"] = g
+                st.rerun()
+            if st.button("Test with default ontology", use_container_width=True):
+                g = rdflib.Graph()
+                g.parse("./resources/ontologies/DUL.owl.ttl", format="turtle")
+                g.bind("dul", rdflib.Namespace("http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#"))
                 st.session_state["ontology_graph"] = g
                 st.rerun()
         
@@ -440,7 +447,7 @@ class OntoViewerApp(StreamlitBaseApp):
             self.parse_dul_owl_widget(st.sidebar)
                     
         if st.session_state.get("ontology_graph", None) is None:
-            st.warning("Please upload the DUL file.")
+            st.warning("Please upload the ontology file or test with the default.")
             st.stop()
             
         self._ontology_graph = st.session_state["ontology_graph"] 
