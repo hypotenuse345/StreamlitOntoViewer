@@ -1,7 +1,5 @@
 import streamlit as st
-from streamlit.delta_generator import DeltaGenerator
 from streamlit_extras.grid import grid as st_grid
-import streamlit_pydantic as sp
 from streamlit_echarts import st_echarts
 
 from pydantic import BaseModel, Field, PrivateAttr
