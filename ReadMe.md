@@ -42,6 +42,21 @@ Ontology Viewer is a simple Streamlit-based application designed to visualize an
 - `resources/ontologies/`: Directory containing ontology files.
   - `DUL.owl.ttl`: Example ontology file.
 
+## Results
+
+![Main1](./resources//screenshots//main1.png)
+
+![Main2](./resources//screenshots//main2.png)
+
+![Main3](./resources//screenshots//main3.png)
+
+![Namespaces](./resources//screenshots//namespaces.png)
+
+![Class_Detail](./resources//screenshots//class_detail.png)
+
+![Property_Detail](./resources//screenshots//property_detail.png)
+
+
 ## Contributing
 Contributions are welcome! Please fork the repository and submit pull requests.
 
