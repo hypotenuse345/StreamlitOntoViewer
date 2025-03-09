@@ -39,9 +39,22 @@ Ontology Viewer is a simple Streamlit-based application designed to visualize an
     - `echarts.py`: Utility functions for Echarts visualizations.
     - `graph_algo.py`: Utility functions for graph algorithms.
   - `namespaces.py`: Namespace definitions and utilities.
+- `resources/ontologies/`: Directory containing ontology files.
+  - `DUL.owl.ttl`: Example ontology file.
 
 ## Contributing
 Contributions are welcome! Please fork the repository and submit pull requests.
 
 ## License
 This project is licensed under the MIT License.
+
+## Dependencies
+The project requires the following dependencies:
+- numpy==2.2.3
+- pandas==2.2.3
+- pydantic==2.10.6
+- rdflib==7.1.3
+- streamlit==1.42.0
+- streamlit_echarts==0.4.0
+- streamlit_extras==0.5.5
+- streamlit_pydantic==0.6.0
