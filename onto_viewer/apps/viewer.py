@@ -512,7 +512,7 @@ class OntoViewerApp(StreamlitBaseApp):
             self.graph_status_subpage_display_metadata(selected_iri, info_col)
 
     def graph_status_subpage_render_original_file(self):
-        hide_file = st.checkbox("隐藏原文件", value=False)
+        hide_file = st.checkbox("隐藏原文件", value=True)
         if not hide_file:
             self.display_rdf_data_widget(st.container(), self.ontology_graph)
     
