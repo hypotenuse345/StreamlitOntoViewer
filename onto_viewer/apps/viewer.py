@@ -164,8 +164,8 @@ class OntoViewerApp(StreamlitBaseApp):
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, range_label, "rdfs:range", line_type="dashed", show_label=True))
             st_echarts(EchartsUtility.create_normal_echart_options(echarts_graph_info, prop_label), height="400px")
         
-        grid = st_grid([2, 1])
-        main_col, info_col = grid.container(), grid.container()
+        grid = st_grid([2, 1, 1])
+        main_col, graph_col, info_col = grid.container(), grid.container(), grid.container()
         with main_col:
             properties = self.properties
             search_value = st.text_input("请输入查询关键词", key="search_props")
@@ -187,10 +187,10 @@ class OntoViewerApp(StreamlitBaseApp):
                 on_select="rerun"
             )
         if event.selection["rows"]:
-            with info_col:
+            with graph_col:
                 selected_iri = props_to_df["URIRef"][event.selection["rows"][0]]
                 render_selected_prop_echarts(self.ontology_graph, selected_iri)
-            self.graph_status_subpage_display_metadata(selected_iri, st.container())
+            self.graph_status_subpage_display_metadata(selected_iri, info_col)
     
     def _graph_status_subpage_get_inheritance_map(self, echarts_graph_info, predicate: rdflib.URIRef, obj_range: List[str]):
         import numpy as np
