@@ -354,7 +354,7 @@ class OntoViewerApp(StreamlitBaseApp):
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
             SELECT DISTINCT ?class WHERE {
                 ?instance rdf:type ?class .
-                FILTER (?class != owl:ObjectProperty && ?class != owl:DatatypeProperty && ?class != owl:Class && ?class != owl:AnnotationProperty && ?class != rdfs:Class && ?class != owl:DatatypeProperty && ?class != rdf:Property && ?class != owl:Restriction && ?class != owl:Ontology && ?class != owl:AsymmetricProperty && ?class != owl:IrreflexiveProperty)
+                FILTER (?class != owl:ObjectProperty && ?class != owl:DatatypeProperty && ?class != owl:Class && ?class != owl:AnnotationProperty && ?class != rdfs:Class && ?class != rdf:Property && ?class != owl:Restriction && ?class != owl:Ontology)
             }
             """)]
         with container.container(border=True):
@@ -412,6 +412,38 @@ class OntoViewerApp(StreamlitBaseApp):
             # st.markdown(f"**Specific Concept:** {specific_concept}")
             metadata += f"**Specific Concept:** {specific_concept.n3(self.ontology_graph.namespace_manager)}\n\n"
         
+        # 若当前节点是为属性，则进一步考虑owl约束
+        if node_iri in self.properties["ObjectProperty"]:
+            is_asymmetric = self.ontology_graph.query(
+                f"ASK {{<{node_iri}> a owl:AsymmetricProperty.}}"
+            )
+            if is_asymmetric.askAnswer:
+                # st.markdown(f"**Asymmetric:** True")
+                metadata += f"**Asymmetric:** True\n\n"
+            is_reflexive = self.ontology_graph.query(
+                f"ASK {{<{node_iri}> a owl:ReflexiveProperty.}}"
+            )
+            if is_reflexive.askAnswer:
+                # st.markdown(f"**Reflexive:** True")
+                metadata += f"**Reflexive:** True\n\n"
+            is_irreflexive = self.ontology_graph.query(
+                f"ASK {{<{node_iri}> a owl:IrreflexiveProperty.}}"
+            )
+            if is_irreflexive.askAnswer:
+                # st.markdown(f"**Irreflexive:** True")
+                metadata += f"**Irreflexive:** True\n\n"
+            is_symmetric = self.ontology_graph.query(
+                f"ASK {{<{node_iri}> a owl:SymmetricProperty.}}"
+            )
+            if is_symmetric.askAnswer:
+                # st.markdown(f"**Symmetric:** True")
+                metadata += f"**Symmetric:** True\n\n"
+            is_transitive = self.ontology_graph.query(
+                f"ASK {{<{node_iri}> a owl:TransitiveProperty.}}"
+            )
+            if is_transitive.askAnswer:
+                # st.markdown(f"**Transitive:** True")
+                metadata += f"**Transitive:** True\n\n"
         # response_placeholder = st.empty()
         with container.container(height=500):
             st.markdown(metadata)

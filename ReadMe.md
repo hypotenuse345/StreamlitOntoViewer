@@ -56,6 +56,8 @@ Ontology Viewer is a simple Streamlit-based application designed to visualize an
 
 ![Property_Detail](./resources//screenshots//property_detail.png)
 
+![Instance_Detail](./resources//screenshots//instance_detail.png)
+
 ## Contributing
 Contributions are welcome! Please fork the repository and submit pull requests.
 
