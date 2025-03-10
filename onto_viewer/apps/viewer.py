@@ -73,8 +73,8 @@ class OntoViewerApp(StreamlitBaseApp):
 
             st_echarts(EchartsUtility.create_normal_echart_options(echarts_graph_info, class_label), height="400px")
     
-        grid = st_grid([2, 1])
-        main_col, info_col = grid.container(), grid.container()
+        grid = st_grid([2, 1, 1])
+        main_col, graph_col, info_col = grid.container(), grid.container(), grid.container()
         with main_col:
             classes = self.classes
 
@@ -93,8 +93,10 @@ class OntoViewerApp(StreamlitBaseApp):
                 on_select="rerun"
             )
         if event.selection["rows"]:
-            with info_col:
-                render_selected_class_echarts(self.ontology_graph, values[event.selection["rows"][0]])
+            with graph_col:
+                selected_iri = values[event.selection["rows"][0]]
+                render_selected_class_echarts(self.ontology_graph, selected_iri)
+            self.graph_status_subpage_display_metadata(selected_iri, info_col) 
     
     @st.fragment
     def graph_status_subpage_render_properties(self):

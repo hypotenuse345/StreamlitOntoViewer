@@ -29,6 +29,12 @@ class EchartsUtility:
                 "top": "bottom",
                 "left": "right",
             },
+            "toolbox": {
+                "feature": {
+                    "saveAsImage": {},
+                    "restore": {"show": True},
+                }
+            },
             "tooltip": {
                 "trigger": 'item',
                 "formatter": '<b>{b}</b>',
