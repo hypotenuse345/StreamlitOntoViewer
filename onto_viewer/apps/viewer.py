@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any, Literal, Union
 
 import pandas as pd
 import rdflib
-from rdflib import RDF, RDFS, OWL
+from rdflib import RDF, RDFS, OWL, SKOS
 import os
 
 from ..utils import EchartsUtility, GraphAlgoUtility
@@ -314,6 +314,10 @@ class OntoViewerApp(StreamlitBaseApp):
         for comment in comments:
             # st.markdown(f"**Comment:** {comment}")
             metadata += f"**Comment:** {comment}\n\n"
+        definitions = list(self.ontology_graph.objects(node_iri, SKOS.definition))
+        for definition in definitions:
+            # st.markdown(f"**Definition:** {definition}")
+            metadata += f"**Definition:** {definition}\n\n"
         # response_placeholder = st.empty()
         with container.container(height=500):
             st.markdown(metadata)
