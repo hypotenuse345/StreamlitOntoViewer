@@ -64,6 +64,8 @@ class OntoViewerApp(StreamlitBaseApp):
             if superclasses:
                 for superclass in superclasses:
                     superclass_label = superclass.n3(ontology_graph.namespace_manager)
+                    if superclass_label.startswith("_:"):
+                        continue
                     echarts_graph_info["nodes"].append({
                         "id": superclass_label, "name": superclass_label, "category": 0
                     })
@@ -122,12 +124,42 @@ class OntoViewerApp(StreamlitBaseApp):
             superprops = ontology_graph.objects(prop_iri, RDFS.subPropertyOf, unique=True)
             if superprops:
                 for superprop in superprops:
+                    if superprop.startswith("_:"):
+                        continue
                     superprop_label = superprop.n3(ontology_graph.namespace_manager)
                     echarts_graph_info["nodes"].append({
                         "id": superprop_label, "name": superprop_label, "category": 0})
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, superprop_label, "rdfs:subPropertyOf"))
             # echarts_graph_info["label"] = 
             
+            # owl:inverseOf
+            inverse_of = ontology_graph.objects(prop_iri, OWL.inverseOf, unique=True)
+            # inverse_of_re = ontology_graph.subjects(OWL.inverseOf, prop_iri, unique=True)
+            if inverse_of:
+                for inverse_prop in inverse_of:
+                    inverse_prop_label = inverse_prop.n3(ontology_graph.namespace_manager)
+                    echarts_graph_info["nodes"].append({
+                        "id": inverse_prop_label, "name": inverse_prop_label, "category": 0})
+                    echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, inverse_prop_label, "owl:inverseOf", line_type="dashed", show_label=True, curveness=0.2))
+                    echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(inverse_prop_label, prop_label, "owl:inverseOf", line_type="dashed", show_label=True, curveness=0.2))
+            
+            # rdfs:domain
+            domains = ontology_graph.objects(prop_iri, RDFS.domain, unique=True)
+            if domains:
+                for domain in domains:
+                    domain_label = domain.n3(ontology_graph.namespace_manager)
+                    echarts_graph_info["nodes"].append({
+                        "id": domain_label, "name": domain_label, "category": 1})
+                    echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, domain_label, "rdfs:domain", line_type="dashed", show_label=True))
+                    
+            # rdfs:range
+            ranges = ontology_graph.objects(prop_iri, RDFS.range, unique=True)
+            if ranges:
+                for range in ranges:
+                    range_label = range.n3(ontology_graph.namespace_manager)
+                    echarts_graph_info["nodes"].append({
+                        "id": range_label, "name": range_label, "category": 1})
+                    echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, range_label, "rdfs:range", line_type="dashed", show_label=True))
             st_echarts(EchartsUtility.create_normal_echart_options(echarts_graph_info, prop_label), height="400px")
         
         grid = st_grid([2, 1])
@@ -154,7 +186,9 @@ class OntoViewerApp(StreamlitBaseApp):
             )
         if event.selection["rows"]:
             with info_col:
-                render_selected_prop_echarts(self.ontology_graph, props_to_df["URIRef"][event.selection["rows"][0]])
+                selected_iri = props_to_df["URIRef"][event.selection["rows"][0]]
+                render_selected_prop_echarts(self.ontology_graph, selected_iri)
+            self.graph_status_subpage_display_metadata(selected_iri, st.container())
     
     def _graph_status_subpage_get_inheritance_map(self, echarts_graph_info, predicate: rdflib.URIRef, obj_range: List[str]):
         import numpy as np
