@@ -103,6 +103,7 @@ class OntoViewerApp(StreamlitBaseApp):
         def render_selected_prop_echarts(ontology_graph, prop_iri):
             prop_iri = rdflib.URIRef(prop_iri)
             echarts_graph_info = {}
+            
             echarts_graph_info["nodes"] = []
             echarts_graph_info["links"] = []
             echarts_graph_info["categories"] = []
@@ -110,6 +111,7 @@ class OntoViewerApp(StreamlitBaseApp):
             echarts_graph_info["categories"].append({"name": "Class"})
             
             prop_label = prop_iri.n3(ontology_graph.namespace_manager)
+            nodes_instantiated = [prop_label]
             echarts_graph_info["nodes"].append({
                 "id": prop_label, "name": prop_label, "category": 0})
 
@@ -118,19 +120,23 @@ class OntoViewerApp(StreamlitBaseApp):
             if subprops:
                 for subprop in subprops:
                     subprop_label = subprop.n3(ontology_graph.namespace_manager)
-                    echarts_graph_info["nodes"].append({
-                        "id": subprop_label, "name": subprop_label, "category": 0})
+                    if subprop_label not in nodes_instantiated:
+                        echarts_graph_info["nodes"].append({
+                            "id": subprop_label, "name": subprop_label, "category": 0})
+                        nodes_instantiated.append(subprop_label)
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(subprop_label, prop_label, "rdfs:subPropertyOf"))
                     
             # 父属性
             superprops = ontology_graph.objects(prop_iri, RDFS.subPropertyOf, unique=True)
             if superprops:
                 for superprop in superprops:
-                    if superprop.startswith("_:"):
-                        continue
                     superprop_label = superprop.n3(ontology_graph.namespace_manager)
-                    echarts_graph_info["nodes"].append({
-                        "id": superprop_label, "name": superprop_label, "category": 0})
+                    if superprop_label.startswith("_:"):
+                        continue
+                    if superprop_label not in nodes_instantiated:
+                        echarts_graph_info["nodes"].append({
+                            "id": superprop_label, "name": superprop_label, "category": 0})
+                        nodes_instantiated.append(superprop_label)
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, superprop_label, "rdfs:subPropertyOf"))
             # echarts_graph_info["label"] = 
             
@@ -140,8 +146,10 @@ class OntoViewerApp(StreamlitBaseApp):
             if inverse_of:
                 for inverse_prop in inverse_of:
                     inverse_prop_label = inverse_prop.n3(ontology_graph.namespace_manager)
-                    echarts_graph_info["nodes"].append({
-                        "id": inverse_prop_label, "name": inverse_prop_label, "category": 0})
+                    if inverse_prop_label not in nodes_instantiated:
+                        echarts_graph_info["nodes"].append({
+                            "id": inverse_prop_label, "name": inverse_prop_label, "category": 0})
+                        nodes_instantiated.append(inverse_prop_label)
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, inverse_prop_label, "owl:inverseOf", line_type="dashed", show_label=True, curveness=0.2))
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(inverse_prop_label, prop_label, "owl:inverseOf", line_type="dashed", show_label=True, curveness=0.2))
             
@@ -150,8 +158,10 @@ class OntoViewerApp(StreamlitBaseApp):
             if domains:
                 for domain in domains:
                     domain_label = domain.n3(ontology_graph.namespace_manager)
-                    echarts_graph_info["nodes"].append({
-                        "id": domain_label, "name": domain_label, "category": 1})
+                    if domain_label not in nodes_instantiated:
+                        echarts_graph_info["nodes"].append({
+                            "id": domain_label, "name": domain_label, "category": 1})
+                        nodes_instantiated.append(domain_label)
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, domain_label, "rdfs:domain", line_type="dashed", show_label=True))
                     
             # rdfs:range
@@ -159,10 +169,14 @@ class OntoViewerApp(StreamlitBaseApp):
             if ranges:
                 for range in ranges:
                     range_label = range.n3(ontology_graph.namespace_manager)
-                    echarts_graph_info["nodes"].append({
-                        "id": range_label, "name": range_label, "category": 1})
+                    if range_label not in nodes_instantiated:
+                        echarts_graph_info["nodes"].append({
+                            "id": range_label, "name": range_label, "category": 1})
+                        nodes_instantiated.append(range_label)
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, range_label, "rdfs:range", line_type="dashed", show_label=True))
-            st_echarts(EchartsUtility.create_normal_echart_options(echarts_graph_info, prop_label), height="400px")
+            options = EchartsUtility.create_normal_echart_options(echarts_graph_info, prop_label)
+            st_echarts(options, height="400px")
+            # st.write(options)
         
         grid = st_grid([2, 1, 1])
         main_col, graph_col, info_col = grid.container(), grid.container(), grid.container()
@@ -227,12 +241,17 @@ class OntoViewerApp(StreamlitBaseApp):
         inheritance_map = {}
         degrees = {}
         pred_label = predicate.n3(self.ontology_graph.namespace_manager)
-        for s, o in self.ontology_graph.subject_objects(predicate=predicate):
-            if o not in obj_range:
-                continue
+        obj_range_copy = set(obj_range.copy())
+        for s, o in self.ontology_graph.subject_objects(predicate=predicate, unique=True):
             # 将RDF对象转换为缩写
             s_label = s.n3(self.ontology_graph.namespace_manager)
             o_label = o.n3(self.ontology_graph.namespace_manager)
+            if o not in obj_range:
+                if o_label.startswith("_:"):
+                    continue
+                else:
+                    obj_range_copy.add(o)
+            
             if o_label not in inheritance_map:
                 inheritance_map[o_label] = []
             inheritance_map[o_label].append(s_label)
@@ -257,8 +276,12 @@ class OntoViewerApp(StreamlitBaseApp):
         for label in degrees:
             GraphAlgoUtility.refresh_degree(degrees, inheritance_map, label, refreshed_degrees)    
         
-        for i, clss in enumerate(obj_range):
+        nodes_initiated = set()
+        for i, clss in enumerate(obj_range_copy):
             s_label = clss.n3(self.ontology_graph.namespace_manager)
+            if s_label in nodes_initiated:
+                continue
+            nodes_initiated.add(s_label)
             echarts_graph_info["nodes"].append({
                 "id": s_label,
                 "name": s_label,
@@ -312,8 +335,10 @@ class OntoViewerApp(StreamlitBaseApp):
                 props_to_df["URIRef"].append(prop)
         self._graph_status_subpage_get_inheritance_map(echarts_graph_info, RDFS.subPropertyOf, props_to_df["URIRef"])
         
+        options = EchartsUtility.create_normal_echart_options(echarts_graph_info, f"Property Hierarchy\n\nTotal:{len(props_to_df['URIRef'])}", label_visible=option_to_label_visualization)
+        # st.write(options)
         s = st_echarts(
-            EchartsUtility.create_normal_echart_options(echarts_graph_info, f"Property Hierarchy\n\nTotal:{len(props_to_df['URIRef'])}", label_visible=option_to_label_visualization), 
+            options=options,
             height="500px",
             events={
                 "click": "function(params) { return params.value }",
