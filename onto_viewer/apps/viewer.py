@@ -169,7 +169,7 @@ class OntoViewerApp(StreamlitBaseApp):
         with main_col:
             properties = self.properties
             search_value = st.text_input("请输入查询关键词", key="search_props")
-            props_to_df = {"Namespace":[], "PropType":[], "LocalName":[], "URIRef":[]}
+            props_to_df = {"Namespace":[], "LocalName":[], "PropType":[], "URIRef":[]}
             for prop_type in ["ObjectProperty", "DatatypeProperty", "AnnotationProperty"]:
                 for prop in properties[prop_type]:
                     prop_label = prop.n3(self.ontology_graph.namespace_manager)
@@ -192,6 +192,36 @@ class OntoViewerApp(StreamlitBaseApp):
                 render_selected_prop_echarts(self.ontology_graph, selected_iri)
             self.graph_status_subpage_display_metadata(selected_iri, info_col)
     
+    @st.fragment
+    def graph_status_subpage_render_instances(self):
+        grid = st_grid([2, 1])
+        main_col, info_col = grid.container(), grid.container()
+        type_list = self.classes_with_individuals
+        type_local_names = [t.n3(self.ontology_graph.namespace_manager) for t in type_list]
+        type_map = {tloc:tiri for tiri, tloc in zip(type_list, type_local_names)}
+        
+        with main_col:
+            search_class = st.selectbox("请选择需要查询的类", type_local_names, key="search_class")
+            instances = self.ontology_graph.subjects(RDF.type, type_map[search_class])
+            instances_df = {"Namespace":[], "LocalName":[], "URIRef":[]}
+            for instance in instances:
+                instance_label = instance.n3(self.ontology_graph.namespace_manager)
+                instances_df["Namespace"].append(instance_label.split(":")[0])
+                instances_df["LocalName"].append(instance_label)
+                instances_df["URIRef"].append(instance)
+        
+            event = st.dataframe(
+                instances_df,
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="single-row",
+                on_select="rerun"
+            )
+        if event.selection["rows"]:
+            with info_col:
+                selected_iri = instances_df["URIRef"][event.selection["rows"][0]]
+                self.graph_status_subpage_display_metadata(selected_iri, info_col)
+        
     def _graph_status_subpage_get_inheritance_map(self, echarts_graph_info, predicate: rdflib.URIRef, obj_range: List[str]):
         import numpy as np
         inheritance_map = {}
@@ -316,6 +346,17 @@ class OntoViewerApp(StreamlitBaseApp):
                 ?property rdf:type owl:AnnotationProperty .
             }""")]
             return property_dict
+        
+        def get_classes_having_instances(g: rdflib.Graph):
+            return [rec["class"] for rec in g.query("""
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
+            SELECT DISTINCT ?class WHERE {
+                ?instance rdf:type ?class .
+                FILTER (?class != owl:ObjectProperty && ?class != owl:DatatypeProperty && ?class != owl:Class && ?class != owl:AnnotationProperty && ?class != rdfs:Class && ?class != owl:DatatypeProperty && ?class != rdf:Property && ?class != owl:Restriction && ?class != owl:Ontology && ?class != owl:AsymmetricProperty && ?class != owl:IrreflexiveProperty)
+            }
+            """)]
         with container.container(border=True):
             grid = st_grid([1, 1],[1, 1],[1, 1])
             
@@ -333,7 +374,10 @@ class OntoViewerApp(StreamlitBaseApp):
             grid.metric(label="对象属性数量", value=len(self.properties["ObjectProperty"]))
             grid.metric(label="数据属性数量", value=len(self.properties["DatatypeProperty"]))
             grid.metric(label="注释属性数量", value=len(self.properties["AnnotationProperty"]))
-            grid.container()
+            
+            self._classes_with_individuals = get_classes_having_instances(self.ontology_graph)
+            grid.metric(label="有实例的类型数量", value=len(self.classes_with_individuals))
+
             self.export_ontology_widget(st.sidebar)
     
     def graph_status_subpage_display_metadata(self, node_iri, container):
@@ -342,18 +386,32 @@ class OntoViewerApp(StreamlitBaseApp):
         metadata += f"**Local Name:** {node_iri.n3(self.ontology_graph.namespace_manager)}\n\n"
         metadata += f"**IRI:** {node_iri}\n\n"
         metadata += f"**Namespace:** {node_iri.n3(self.ontology_graph.namespace_manager).split(':')[0]}\n\n"
-        labels = sorted(list(self.ontology_graph.objects(node_iri, RDFS.label)), key=lambda x: x.language)
+        labels = self.ontology_graph.objects(node_iri, RDFS.label)
+        try:
+            labels = sorted(list(labels), key=lambda x: x.language)
+        except:
+            pass
+        
         for label in labels:
             # st.markdown(f"**Label ({label.language if label.language else 'en'}):** {label}")
             metadata += f"**Label ({label.language if label.language else 'en'}):** {label}\n\n"
-        comments = list(self.ontology_graph.objects(node_iri, RDFS.comment))
+        comments = list(self.ontology_graph.objects(node_iri, RDFS.comment, unique=True))
         for comment in comments:
             # st.markdown(f"**Comment:** {comment}")
             metadata += f"**Comment:** {comment}\n\n"
-        definitions = list(self.ontology_graph.objects(node_iri, SKOS.definition))
+        definitions = list(self.ontology_graph.objects(node_iri, SKOS.definition, unique=True))
         for definition in definitions:
             # st.markdown(f"**Definition:** {definition}")
             metadata += f"**Definition:** {definition}\n\n"
+        general_concepts = list(self.ontology_graph.objects(node_iri, SKOS.broader, unique=True))    
+        for general_concept in general_concepts:
+            # st.markdown(f"**General Concept:** {general_concept}")
+            metadata += f"**General Concept:** {general_concept.n3(self.ontology_graph.namespace_manager)}\n\n"
+        specific_concepts = list(self.ontology_graph.subjects(SKOS.broader, node_iri, unique=True))
+        for specific_concept in specific_concepts:
+            # st.markdown(f"**Specific Concept:** {specific_concept}")
+            metadata += f"**Specific Concept:** {specific_concept.n3(self.ontology_graph.namespace_manager)}\n\n"
+        
         # response_placeholder = st.empty()
         with container.container(height=500):
             st.markdown(metadata)
@@ -438,7 +496,7 @@ class OntoViewerApp(StreamlitBaseApp):
         # 占位： 主页面
         main_col = st.container()
         with main_col:
-            maintab1, maintab2, maintab3, maintab4, maintab5 = st.tabs(["本体可视化", "命名空间", "类", "属性", "原文件内容"])
+            maintab1, maintab2, maintab3, maintab4, maintab5, maintab6 = st.tabs(["本体可视化", "命名空间", "类", "属性", "实例", "原文件内容"])
             
         with maintab1.container():
             self.graph_status_subpage_visualization()
@@ -451,8 +509,11 @@ class OntoViewerApp(StreamlitBaseApp):
             
         with maintab4.container():
             self.graph_status_subpage_render_properties()
-            
+        
         with maintab5.container():
+            self.graph_status_subpage_render_instances()
+        
+        with maintab6.container():
             self.graph_status_subpage_render_original_file()
 
     #endregion
@@ -474,6 +535,12 @@ class OntoViewerApp(StreamlitBaseApp):
     @property
     def classes(self) -> List[str]:
         return self._classes
+
+    _classes_with_individuals: List[str] = PrivateAttr(default_factory=list)
+
+    @property
+    def classes_with_individuals(self) -> List[str]:
+        return self._classes_with_individuals
 
     _properties: Dict[str, List[str]] = PrivateAttr(default_factory=dict)
     @property
