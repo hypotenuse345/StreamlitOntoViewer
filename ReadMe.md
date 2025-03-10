@@ -3,6 +3,8 @@
 ## Overview
 Ontology Viewer is a simple Streamlit-based application designed to visualize and interact with ontology graphs. It provides functionalities to explore namespaces, classes, properties, and visualize hierarchical relationships within the ontology.
 
+[![Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://appontoviewer-w5pvvngndyhtwccjhkbpdu.streamlit.app/)
+
 ## Features
 - **Graph Status Page**: Visualize namespaces, classes, and properties.
 - **Class Hierarchy**: Display class inheritance relationships.

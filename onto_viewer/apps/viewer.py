@@ -383,7 +383,6 @@ class OntoViewerApp(StreamlitBaseApp):
     def graph_status_subpage_display_metadata(self, node_iri, container):
         node_iri = rdflib.URIRef(node_iri)
         metadata = ""
-        metadata += f"**Local Name:** {node_iri.n3(self.ontology_graph.namespace_manager)}\n\n"
         metadata += f"**IRI:** {node_iri}\n\n"
         metadata += f"**Namespace:** {node_iri.n3(self.ontology_graph.namespace_manager).split(':')[0]}\n\n"
         labels = self.ontology_graph.objects(node_iri, RDFS.label)
@@ -445,8 +444,11 @@ class OntoViewerApp(StreamlitBaseApp):
                 # st.markdown(f"**Transitive:** True")
                 metadata += f"**Transitive:** True\n\n"
         # response_placeholder = st.empty()
-        with container.container(height=500):
-            st.markdown(metadata)
+        
+        with container.container():
+            st.write(f"**{node_iri.n3(self.ontology_graph.namespace_manager)}** \n\n")
+            with st.container(height=500, border=False):
+                st.markdown(metadata)
         
     def parse_dul_owl_widget(self, container):
         with container:
