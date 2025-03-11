@@ -75,7 +75,7 @@ class OntoViewerApp(StreamlitBaseApp):
     
         grid = st_grid([2, 1])
         main_col, info_graph_col = grid.container(), grid.container()
-        info_col = info_graph_col.container(height=300, border=False)
+        info_col = info_graph_col.container()
         graph_col = info_graph_col.container()
         with main_col:
             classes = self.classes
@@ -97,7 +97,7 @@ class OntoViewerApp(StreamlitBaseApp):
         if event.selection["rows"]:
             with graph_col:
                 selected_iri = values[event.selection["rows"][0]]
-                render_selected_class_echarts(self.ontology_graph, selected_iri, height=250)
+                render_selected_class_echarts(self.ontology_graph, selected_iri)
             self.graph_status_subpage_display_metadata(selected_iri, info_col) 
     
     @st.fragment
@@ -182,7 +182,7 @@ class OntoViewerApp(StreamlitBaseApp):
         
         grid = st_grid([2, 1])
         main_col, info_graph_col = grid.container(), grid.container()
-        info_col = info_graph_col.container(height=300, border=False)
+        info_col = info_graph_col.container()
         graph_col = info_graph_col.container()
         with main_col:
             properties = self.properties
@@ -207,7 +207,7 @@ class OntoViewerApp(StreamlitBaseApp):
         if event.selection["rows"]:
             with graph_col:
                 selected_iri = props_to_df["URIRef"][event.selection["rows"][0]]
-                render_selected_prop_echarts(self.ontology_graph, selected_iri, height=250)
+                render_selected_prop_echarts(self.ontology_graph, selected_iri)
             self.graph_status_subpage_display_metadata(selected_iri, info_col)
     
     @st.fragment
@@ -462,31 +462,17 @@ class OntoViewerApp(StreamlitBaseApp):
         metadata = ""
         metadata += f"**IRI:** {node_iri}\n\n"
         metadata += f"**Namespace:** {node_iri.n3(self.ontology_graph.namespace_manager).split(':')[0]}\n\n"
-        labels = self.ontology_graph.objects(node_iri, RDFS.label)
-        try:
-            labels = sorted(list(labels), key=lambda x: x.language)
-        except:
-            pass
         
-        for label in labels:
-            # st.markdown(f"**Label ({label.language if label.language else 'en'}):** {label}")
-            metadata += f"**Label ({label.language if label.language else 'en'}):** {label}\n\n"
-        comments = list(self.ontology_graph.objects(node_iri, RDFS.comment, unique=True))
-        for comment in comments:
-            # st.markdown(f"**Comment:** {comment}")
-            metadata += f"**Comment:** {comment}\n\n"
-        definitions = list(self.ontology_graph.objects(node_iri, SKOS.definition, unique=True))
-        for definition in definitions:
-            # st.markdown(f"**Definition:** {definition}")
-            metadata += f"**Definition:** {definition}\n\n"
-        general_concepts = list(self.ontology_graph.objects(node_iri, SKOS.broader, unique=True))    
-        for general_concept in general_concepts:
-            # st.markdown(f"**General Concept:** {general_concept}")
-            metadata += f"**General Concept:** {general_concept.n3(self.ontology_graph.namespace_manager)}\n\n"
-        specific_concepts = list(self.ontology_graph.subjects(SKOS.broader, node_iri, unique=True))
-        for specific_concept in specific_concepts:
-            # st.markdown(f"**Specific Concept:** {specific_concept}")
-            metadata += f"**Specific Concept:** {specific_concept.n3(self.ontology_graph.namespace_manager)}\n\n"
+        prop_literals = [po for po in self.ontology_graph.predicate_objects(subject=node_iri, unique=True) if isinstance(po[1], rdflib.Literal)]
+        for p, o in prop_literals:
+            if p == RDFS.label:
+                metadata += f"**Label ({o.language if o.language else 'en'}):** {o}\n\n"
+            elif p == RDFS.comment:
+                metadata += f"**Comment ({o.language if o.language else 'en'}):** {o}\n\n"
+            elif p == SKOS.definition:
+                metadata += f"**Definition ({o.language if o.language else 'en'}):** {o}\n\n"
+            else:
+                metadata += f"**{p.n3(self.ontology_graph.namespace_manager)}**: {o}\n\n"
         
         # 若当前节点是为属性，则进一步考虑owl约束
         if node_iri in self.properties["ObjectProperty"]:
@@ -524,7 +510,7 @@ class OntoViewerApp(StreamlitBaseApp):
         
         with container.container():
             st.write(f"**{node_iri.n3(self.ontology_graph.namespace_manager)}** \n\n")
-            with st.container(height=250, border=True):
+            with st.popover("元数据", use_container_width=True):
                 st.markdown(metadata)
         
     def parse_dul_owl_widget(self, container):
