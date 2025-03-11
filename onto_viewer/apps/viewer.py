@@ -212,8 +212,71 @@ class OntoViewerApp(StreamlitBaseApp):
     
     @st.fragment
     def graph_status_subpage_render_instances(self):
+        def render_selected_instance_echarts(ontology_graph: rdflib.Graph, instance_iri, height=400):
+            instance_iri = rdflib.URIRef(instance_iri)
+            echarts_graph_info = {"nodes":[], "links":[]}
+            echarts_graph_info["categories"] = []
+            echarts_graph_info["categories"].append({"name": "Instance"})
+            echarts_graph_info["categories"].append({"name": "Class"})
+            echarts_graph_info["categories"].append({"name": "Undefined"})
+            
+            category_map = {"Undefined": 2}
+            
+            instance_label = instance_iri.n3(ontology_graph.namespace_manager)
+            nodes_instantiated = [instance_label]
+            echarts_graph_info["nodes"].append({
+                "id": instance_label, "name": instance_label, "category": 0})
+            
+            # 正向关系
+            for pred, obj in ontology_graph.predicate_objects(instance_iri):
+                if isinstance(obj, rdflib.Literal):
+                    continue
+                pred_label = pred.n3(ontology_graph.namespace_manager)
+                obj_label = obj.n3(ontology_graph.namespace_manager)
+                if obj_label not in nodes_instantiated:
+                    if pred == RDF.type:
+                        echarts_graph_info["nodes"].append({
+                            "id": obj_label, "name": obj_label, "category": 1})
+                    else:
+                        try:
+                            obj_type = [ii for ii in list(ontology_graph.objects(obj, RDF.type)) if ii!=OWL.NamedIndividual][0]
+                            obj_type = obj_type.n3(ontology_graph.namespace_manager)
+                            if obj_type not in category_map:
+                                category_map[obj_type] = len(echarts_graph_info["categories"])
+                                echarts_graph_info["categories"].append({"name": obj_type})
+                        except:
+                            obj_type = "Undefined"
+                        echarts_graph_info["nodes"].append({
+                            "id": obj_label, "name": obj_label, "category": category_map[obj_type]
+                        })
+                        
+                    nodes_instantiated.append(obj_label)
+                echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(instance_label, obj_label, pred_label, line_type="dashed", show_label=True))
+                
+            # 反向关系
+            for subj, pred in ontology_graph.subject_predicates(instance_iri):
+                pred_label = pred.n3(ontology_graph.namespace_manager)
+                subj_label = subj.n3(ontology_graph.namespace_manager)
+                if subj_label not in nodes_instantiated:
+                    try:
+                        subj_type = [ii for ii in list(ontology_graph.objects(subj, RDF.type)) if ii!=OWL.NamedIndividual][0]
+                        subj_type = subj_type.n3(ontology_graph.namespace_manager)
+                        if subj_type not in category_map:
+                            category_map[subj_type] = len(echarts_graph_info["categories"])
+                            echarts_graph_info["categories"].append({"name": subj_type})
+                    except:
+                        subj_type = "Undefined"
+                    echarts_graph_info["nodes"].append({
+                        "id": subj_label, "name": subj_label, "category": category_map[subj_type]
+                    })
+                echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(subj_label, instance_label, pred_label, line_type="dashed", show_label=True))
+            options = EchartsUtility.create_normal_echart_options(echarts_graph_info, instance_label)
+            st_echarts(options, height=f"{height}px")
+        
         grid = st_grid([2, 1])
-        main_col, info_col = grid.container(), grid.container()
+        main_col, info_graph_col = grid.container(), grid.container()
+        info_col = info_graph_col.container()
+        graph_col = info_graph_col.container()
         type_list = self.classes_with_individuals
         type_local_names = [t.n3(self.ontology_graph.namespace_manager) for t in type_list]
         type_map = {tloc:tiri for tiri, tloc in zip(type_list, type_local_names)}
@@ -239,9 +302,10 @@ class OntoViewerApp(StreamlitBaseApp):
                 on_select="rerun"
             )
         if event.selection["rows"]:
-            with info_col:
-                selected_iri = instances_df["URIRef"][event.selection["rows"][0]]
-                self.graph_status_subpage_display_metadata(selected_iri, info_col)
+            selected_iri = instances_df["URIRef"][event.selection["rows"][0]]
+            with graph_col:
+                render_selected_instance_echarts(self.ontology_graph, selected_iri)
+            self.graph_status_subpage_display_metadata(selected_iri, info_col)
         
     def _graph_status_subpage_get_inheritance_map(self, echarts_graph_info, predicate: rdflib.URIRef, obj_range: List[str]):
         import numpy as np
