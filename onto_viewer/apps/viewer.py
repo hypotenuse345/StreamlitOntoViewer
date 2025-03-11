@@ -432,7 +432,10 @@ class OntoViewerApp(StreamlitBaseApp):
             
             grid.metric(label="三元组数量", value=st.session_state.triple_count, delta = delta)
         
-            classes = list(self.ontology_graph.subjects(predicate=RDF.type, object=OWL.Class, unique=True))
+            classes = set(self.ontology_graph.subjects(predicate=RDF.type, object=OWL.Class, unique=True))
+            for so in self.ontology_graph.subject_objects(predicate=RDFS.subClassOf, unique=True):
+                classes.add(so[0])
+                classes.add(so[1])
             classes = [clss for clss in classes if not clss.n3(self.ontology_graph.namespace_manager).startswith("_:")]
             self._classes = classes
             grid.metric(label="类型数量", value=len(self.classes))
