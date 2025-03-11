@@ -382,12 +382,53 @@ class OntoViewerApp(StreamlitBaseApp):
                 FILTER (?class != owl:ObjectProperty && ?class != owl:DatatypeProperty && ?class != owl:Class && ?class != owl:AnnotationProperty && ?class != rdfs:Class && ?class != rdf:Property && ?class != owl:Restriction && ?class != owl:Ontology)
             }
             """)]
+        
+        def show_more(obj, g: rdflib.Graph):
+            if isinstance(obj, rdflib.Literal):
+                return obj
+            elif isinstance(obj, rdflib.URIRef):
+                o_label = obj.n3(g.namespace_manager)
+                return f"[{o_label}]({obj})"
+            # metadata = "[\n\n"
+            metadata = ""
+            for p, o in g.predicate_objects(subject=obj):
+                p_label = p.n3(g.namespace_manager)
+                if p_label == "rdf:first" or p_label == "rdf:rest":
+                    if o == RDF.nil:
+                        continue
+                    metadata += f"\n\n{show_more(o, g)}\n\n\n\n"
+                else:
+                    metadata += f"&emsp;&emsp;**{p.n3(g.namespace_manager)}**: {show_more(o, g)};"
+            # metadata += "]\n\n"
+            return metadata
+        
+        @st.cache_resource
+        def get_metadata_of_ontology(triple_count: int, _g: rdflib.Graph):
+            ontos = list(_g.subjects(predicate=RDF.type, object=OWL.Ontology, unique=True))
+            if len(ontos) == 0:
+                return None
+            ont = ontos[0]
+            metadata = ""
+            metadata += f"**Ontology IRI**: {ont.n3(_g.namespace_manager)}\n\n"
+            for p, o in _g.predicate_objects(subject=ont):
+                metadata += f"**{p.fragment}**: {show_more(o, _g)}\n\n"
+            return metadata
+        
+        delta = len(self.ontology_graph) - st.session_state.triple_count
+            
+        st.session_state.triple_count = len(self.ontology_graph)
+        with container.container():
+            with st.popover("元数据", use_container_width=True):
+                    metadata = get_metadata_of_ontology(st.session_state.triple_count, self.ontology_graph)
+                    if metadata is not None:
+                        st.markdown(metadata)
+                    else:
+                        st.markdown("未找到元数据")
+                    
         with container.container(border=True):
             grid = st_grid([1, 1],[1, 1],[1, 1])
             
-            delta = len(self.ontology_graph) - st.session_state.triple_count
             
-            st.session_state.triple_count = len(self.ontology_graph)
             grid.metric(label="三元组数量", value=st.session_state.triple_count, delta = delta)
         
             classes = list(self.ontology_graph.subjects(predicate=RDF.type, object=OWL.Class, unique=True))
@@ -403,7 +444,7 @@ class OntoViewerApp(StreamlitBaseApp):
             self._classes_with_individuals = get_classes_having_instances(self.ontology_graph)
             grid.metric(label="有实例的类型数量", value=len(self.classes_with_individuals))
 
-            self.export_ontology_widget(st.sidebar)
+            self.export_ontology_widget(container)
     
     def graph_status_subpage_display_metadata(self, node_iri, container):
         node_iri = rdflib.URIRef(node_iri)
