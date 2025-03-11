@@ -36,7 +36,7 @@ class OntoViewerApp(StreamlitBaseApp):
     
     @st.fragment
     def graph_status_subpage_render_classes(self):
-        def render_selected_class_echarts(ontology_graph, class_iri):
+        def render_selected_class_echarts(ontology_graph, class_iri, height=400):
             class_iri = rdflib.URIRef(class_iri)
             class_label = class_iri.n3(ontology_graph.namespace_manager)
             echarts_graph_info = {}
@@ -71,10 +71,12 @@ class OntoViewerApp(StreamlitBaseApp):
                     })
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(class_label, superclass_label, "rdfs:subClassOf"))
 
-            st_echarts(EchartsUtility.create_normal_echart_options(echarts_graph_info, class_label), height="400px")
+            st_echarts(EchartsUtility.create_normal_echart_options(echarts_graph_info, class_label), height=f"{height}px")
     
-        grid = st_grid([2, 1, 1])
-        main_col, graph_col, info_col = grid.container(), grid.container(), grid.container()
+        grid = st_grid([2, 1])
+        main_col, info_graph_col = grid.container(), grid.container()
+        info_col = info_graph_col.container(height=300, border=False)
+        graph_col = info_graph_col.container()
         with main_col:
             classes = self.classes
 
@@ -95,12 +97,12 @@ class OntoViewerApp(StreamlitBaseApp):
         if event.selection["rows"]:
             with graph_col:
                 selected_iri = values[event.selection["rows"][0]]
-                render_selected_class_echarts(self.ontology_graph, selected_iri)
+                render_selected_class_echarts(self.ontology_graph, selected_iri, height=250)
             self.graph_status_subpage_display_metadata(selected_iri, info_col) 
     
     @st.fragment
     def graph_status_subpage_render_properties(self):
-        def render_selected_prop_echarts(ontology_graph, prop_iri):
+        def render_selected_prop_echarts(ontology_graph, prop_iri, height=400):
             prop_iri = rdflib.URIRef(prop_iri)
             echarts_graph_info = {}
             
@@ -175,11 +177,13 @@ class OntoViewerApp(StreamlitBaseApp):
                         nodes_instantiated.append(range_label)
                     echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(prop_label, range_label, "rdfs:range", line_type="dashed", show_label=True))
             options = EchartsUtility.create_normal_echart_options(echarts_graph_info, prop_label)
-            st_echarts(options, height="400px")
+            st_echarts(options, height=f"{height}px")
             # st.write(options)
         
-        grid = st_grid([2, 1, 1])
-        main_col, graph_col, info_col = grid.container(), grid.container(), grid.container()
+        grid = st_grid([2, 1])
+        main_col, info_graph_col = grid.container(), grid.container()
+        info_col = info_graph_col.container(height=300, border=False)
+        graph_col = info_graph_col.container()
         with main_col:
             properties = self.properties
             search_value = st.text_input("请输入查询关键词", key="search_props")
@@ -203,7 +207,7 @@ class OntoViewerApp(StreamlitBaseApp):
         if event.selection["rows"]:
             with graph_col:
                 selected_iri = props_to_df["URIRef"][event.selection["rows"][0]]
-                render_selected_prop_echarts(self.ontology_graph, selected_iri)
+                render_selected_prop_echarts(self.ontology_graph, selected_iri, height=250)
             self.graph_status_subpage_display_metadata(selected_iri, info_col)
     
     @st.fragment
@@ -216,10 +220,13 @@ class OntoViewerApp(StreamlitBaseApp):
         
         with main_col:
             search_class = st.selectbox("请选择需要查询的类", type_local_names, key="search_class")
+            search_value = st.text_input("请输入查询关键词", key="search_instances")
             instances = self.ontology_graph.subjects(RDF.type, type_map[search_class])
             instances_df = {"Namespace":[], "LocalName":[], "URIRef":[]}
             for instance in instances:
                 instance_label = instance.n3(self.ontology_graph.namespace_manager)
+                if search_value and (search_value.lower() not in instance.lower() and search_value.lower() not in instance_label.lower()):
+                    continue
                 instances_df["Namespace"].append(instance_label.split(":")[0])
                 instances_df["LocalName"].append(instance_label)
                 instances_df["URIRef"].append(instance)
@@ -517,7 +524,7 @@ class OntoViewerApp(StreamlitBaseApp):
         
         with container.container():
             st.write(f"**{node_iri.n3(self.ontology_graph.namespace_manager)}** \n\n")
-            with st.container(height=500, border=False):
+            with st.container(height=250, border=True):
                 st.markdown(metadata)
         
     def parse_dul_owl_widget(self, container):
