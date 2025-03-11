@@ -83,7 +83,6 @@ The project requires the following dependencies:
 - streamlit==1.42.0
 - streamlit_echarts==0.4.0
 - streamlit_extras==0.5.5
-- streamlit_pydantic==0.6.0
 
 ## To Do List
 - [x] <span style="color:black;">Add support for SKOS-based semantics.</span>
