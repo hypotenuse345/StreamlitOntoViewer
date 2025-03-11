@@ -418,6 +418,7 @@ class OntoViewerApp(StreamlitBaseApp):
             
         st.session_state.triple_count = len(self.ontology_graph)
         with container.container():
+            st.header(f"🕸️ {st.session_state.ontology_filename} 📊")
             with st.popover("元数据", use_container_width=True):
                     metadata = get_metadata_of_ontology(st.session_state.triple_count, self.ontology_graph)
                     if metadata is not None:
@@ -535,6 +536,7 @@ class OntoViewerApp(StreamlitBaseApp):
                 g.bind("dul", rdflib.Namespace("http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#"))
                 # 将RDF图对象存储在session_state中
                 st.session_state["ontology_graph"] = g
+                st.session_state["ontology_filename"] = os.path.splitext(DUL_File.name)[0]
                 st.rerun()
             resource_list = os.listdir("./resources/ontologies")
             selected = st.selectbox("Default Ontologies", resource_list, label_visibility="collapsed")
@@ -550,6 +552,7 @@ class OntoViewerApp(StreamlitBaseApp):
                 g.parse(f"./resources/ontologies/{selected}", format=format)
                 g.bind("dul", rdflib.Namespace("http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#"))
                 st.session_state["ontology_graph"] = g
+                st.session_state["ontology_filename"] = os.path.splitext(selected)[0]
                 st.rerun()
         
     def export_ontology_widget(self, container):
@@ -594,18 +597,25 @@ class OntoViewerApp(StreamlitBaseApp):
     def graph_status_subpage(self):
         # 占位：边栏
         with st.sidebar:
-            sidetab1, sidetab2 = st.tabs(["基本信息", "开发者信息"])
+            sidetab1, sidetab2 = st.tabs(["基本信息 📝", "开发者信息 👨‍💻"])
             
         self.graph_status_subpage_display_graph_basic_info_widget(sidetab1)
         self.display_creator_widget(sidetab2)
         with st.sidebar:
-            if st.button("重置查看器", type="primary", use_container_width=True):
+            if st.button("重置查看器 🔄", type="primary", use_container_width=True):
                 st.session_state["ontology_graph"] = None
                 st.rerun()
         # 占位： 主页面
         main_col = st.container()
         with main_col:
-            maintab1, maintab2, maintab3, maintab4, maintab5, maintab6 = st.tabs(["本体可视化", "命名空间", "类", "属性", "实例", "原文件内容"])
+            maintab1, maintab2, maintab3, maintab4, maintab5, maintab6 = st.tabs([
+                "本体可视化 🌐", 
+                "命名空间 📚", 
+                "类 🏷️", 
+                "属性 🔗", 
+                "实例 📦", 
+                "原文件内容 📄"
+            ])
             
         with maintab1.container():
             self.graph_status_subpage_visualization()
@@ -680,5 +690,3 @@ class OntoViewerApp(StreamlitBaseApp):
         #     self.change_properties_widget()
         # elif subpage_option == "变更日志":
         #     self.change_log_widget()
-        
-        
