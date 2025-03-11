@@ -46,18 +46,26 @@ Ontology Viewer is a simple Streamlit-based application designed to visualize an
 
 ## Results
 
+Entry:
+![Entry](./resources//screenshots//entry.png)
+
+Main:
 ![Main1](./resources//screenshots//main1.png)
 
 ![Main2](./resources//screenshots//main2.png)
 
 ![Main3](./resources//screenshots//main3.png)
 
+Namespace:
 ![Namespaces](./resources//screenshots//namespaces.png)
 
+Classes:
 ![Class_Detail](./resources//screenshots//class_detail.png)
 
+Properties:
 ![Property_Detail](./resources//screenshots//property_detail.png)
 
+Instances:
 ![Instance_Detail](./resources//screenshots//instance_detail.png)
 
 ## Contributing
@@ -78,7 +86,7 @@ The project requires the following dependencies:
 - streamlit_pydantic==0.6.0
 
 ## To Do List
-- [ ] <span style="color:gray;">Add support for SKOS-based semantics.</span>
+- [x] <span style="color:black;">Add support for SKOS-based semantics.</span>
 - [ ] <span style="color:gray;">Add SPARQL query functionality.</span>
 - [ ] <span style="color:gray;">Add functionality to create new classes.</span>
 - [ ] <span style="color:gray;">Add functionality to create new properties.</span>

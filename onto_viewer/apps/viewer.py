@@ -411,7 +411,7 @@ class OntoViewerApp(StreamlitBaseApp):
             metadata = ""
             metadata += f"**Ontology IRI**: {ont.n3(_g.namespace_manager)}\n\n"
             for p, o in _g.predicate_objects(subject=ont):
-                metadata += f"**{p.fragment}**: {show_more(o, _g)}\n\n"
+                metadata += f"&emsp;**{p.n3(_g.namespace_manager)}**: {show_more(o, _g)}\n\n"
             return metadata
         
         delta = len(self.ontology_graph) - st.session_state.triple_count
@@ -536,9 +536,18 @@ class OntoViewerApp(StreamlitBaseApp):
                 # 将RDF图对象存储在session_state中
                 st.session_state["ontology_graph"] = g
                 st.rerun()
+            resource_list = os.listdir("./resources/ontologies")
+            selected = st.selectbox("Default Ontologies", resource_list, label_visibility="collapsed")
             if st.button("Test with default ontology", use_container_width=True):
                 g = rdflib.Graph()
-                g.parse("./resources/ontologies/DUL.owl.ttl", format="turtle")
+                ext = os.path.splitext(selected)[1]
+                if ext == ".ttl":
+                    format = "turtle"
+                elif ext == ".rdf":
+                    format = "xml"
+                elif ext == ".owl":
+                    format = "xml"
+                g.parse(f"./resources/ontologies/{selected}", format=format)
                 g.bind("dul", rdflib.Namespace("http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#"))
                 st.session_state["ontology_graph"] = g
                 st.rerun()
