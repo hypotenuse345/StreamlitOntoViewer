@@ -13,6 +13,7 @@ import os
 from ..utils import EchartsUtility, GraphAlgoUtility
 
 from .rdf_query import RDFQueryApp
+import uuid
 
 class OntoViewerApp(RDFQueryApp):
     """Ontology Viewer App"""
@@ -212,75 +213,94 @@ class OntoViewerApp(RDFQueryApp):
     
     @st.fragment
     def graph_status_subpage_render_instances(self):
-        def render_selected_instance_echarts(ontology_graph: rdflib.Graph, instance_iri, height=400):
-            instance_iri = rdflib.URIRef(instance_iri)
-            echarts_graph_info = {"nodes":[], "links":[]}
-            echarts_graph_info["categories"] = []
-            echarts_graph_info["categories"].append({"name": "Instance"})
-            echarts_graph_info["categories"].append({"name": "Class"})
-            echarts_graph_info["categories"].append({"name": "Undefined"})
-            
-            category_map = {"Undefined": 2}
-            
-            instance_label = instance_iri.n3(ontology_graph.namespace_manager)
-            nodes_instantiated = [instance_label]
-            echarts_graph_info["nodes"].append({
-                "id": instance_label, "name": instance_label, "category": 0})
-            
-            # 正向关系
-            for pred, obj in ontology_graph.predicate_objects(instance_iri):
-                if isinstance(obj, rdflib.Literal):
-                    continue
-                pred_label = pred.n3(ontology_graph.namespace_manager)
-                obj_label = obj.n3(ontology_graph.namespace_manager)
-                if obj_label not in nodes_instantiated:
-                    if pred == RDF.type:
-                        echarts_graph_info["nodes"].append({
-                            "id": obj_label, "name": obj_label, "category": 1})
-                    else:
-                        try:
-                            obj_type = [ii for ii in list(ontology_graph.objects(obj, RDF.type)) if ii!=OWL.NamedIndividual][0]
-                            obj_type = obj_type.n3(ontology_graph.namespace_manager)
-                            if obj_type not in category_map:
-                                category_map[obj_type] = len(echarts_graph_info["categories"])
-                                echarts_graph_info["categories"].append({"name": obj_type})
-                        except:
-                            obj_type = "Undefined"
-                        echarts_graph_info["nodes"].append({
-                            "id": obj_label, "name": obj_label, "category": category_map[obj_type]
-                        })
-                        
-                    nodes_instantiated.append(obj_label)
-                echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(instance_label, obj_label, pred_label, line_type="dashed", show_label=True))
+        def create_selected_instance_echarts(ontology_graph: rdflib.Graph, instance_iri):
+            if instance_iri in st.session_state.cached_echarts_options:
+                options = st.session_state.cached_echarts_options[instance_iri]
+            else:
+                instance_iri = rdflib.URIRef(instance_iri)
+                echarts_graph_info = {"nodes":[], "links":[]}
+                echarts_graph_info["categories"] = []
+                echarts_graph_info["categories"].append({"name": "Instance"})
+                echarts_graph_info["categories"].append({"name": "Class"})
+                echarts_graph_info["categories"].append({"name": "Undefined"})
                 
-            # 反向关系
-            for subj, pred in ontology_graph.subject_predicates(instance_iri):
-                pred_label = pred.n3(ontology_graph.namespace_manager)
-                subj_label = subj.n3(ontology_graph.namespace_manager)
-                if subj_label not in nodes_instantiated:
-                    try:
-                        subj_type = [ii for ii in list(ontology_graph.objects(subj, RDF.type)) if ii!=OWL.NamedIndividual][0]
-                        subj_type = subj_type.n3(ontology_graph.namespace_manager)
-                        if subj_type not in category_map:
-                            category_map[subj_type] = len(echarts_graph_info["categories"])
-                            echarts_graph_info["categories"].append({"name": subj_type})
-                    except:
-                        subj_type = "Undefined"
-                    echarts_graph_info["nodes"].append({
-                        "id": subj_label, "name": subj_label, "category": category_map[subj_type]
-                    })
-                echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(subj_label, instance_label, pred_label, line_type="dashed", show_label=True))
-            options = EchartsUtility.create_normal_echart_options(echarts_graph_info, instance_label)
-            st_echarts(options, height=f"{height}px")
+                category_map = {"Undefined": 2}
+                
+                instance_label = instance_iri.n3(ontology_graph.namespace_manager)
+                nodes_instantiated = [instance_label]
+                echarts_graph_info["nodes"].append({
+                    "id": instance_label, "name": instance_label, "category": 0})
+                
+                # 正向关系
+                for pred, obj in ontology_graph.predicate_objects(instance_iri):
+                    if isinstance(obj, rdflib.Literal):
+                        continue
+                    pred_label = pred.n3(ontology_graph.namespace_manager)
+                    obj_label = obj.n3(ontology_graph.namespace_manager)
+                    if obj_label not in nodes_instantiated:
+                        if pred == RDF.type:
+                            echarts_graph_info["nodes"].append({
+                                "id": obj_label, "name": obj_label, "category": 1})
+                        else:
+                            try:
+                                obj_type = [ii for ii in list(ontology_graph.objects(obj, RDF.type)) if ii!=OWL.NamedIndividual][0]
+                                obj_type = obj_type.n3(ontology_graph.namespace_manager)
+                                if obj_type not in category_map:
+                                    category_map[obj_type] = len(echarts_graph_info["categories"])
+                                    echarts_graph_info["categories"].append({"name": obj_type})
+                            except:
+                                obj_type = "Undefined"
+                            echarts_graph_info["nodes"].append({
+                                "id": obj_label, "name": obj_label, 
+                                "category": category_map[obj_type],
+                                "value": obj
+                            })
+                            
+                        nodes_instantiated.append(obj_label)
+                    echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(instance_label, obj_label, pred_label, line_type="dashed", show_label=True))
+                    
+                # 反向关系
+                for subj, pred in ontology_graph.subject_predicates(instance_iri):
+                    pred_label = pred.n3(ontology_graph.namespace_manager)
+                    subj_label = subj.n3(ontology_graph.namespace_manager)
+                    if subj_label not in nodes_instantiated:
+                        try:
+                            subj_type = [ii for ii in list(ontology_graph.objects(subj, RDF.type)) if ii!=OWL.NamedIndividual][0]
+                            subj_type = subj_type.n3(ontology_graph.namespace_manager)
+                            if subj_type not in category_map:
+                                category_map[subj_type] = len(echarts_graph_info["categories"])
+                                echarts_graph_info["categories"].append({"name": subj_type})
+                        except:
+                            subj_type = "Undefined"
+                        echarts_graph_info["nodes"].append({
+                            "id": subj_label, "name": subj_label, "category": category_map[subj_type],
+                            "value": subj
+                        })
+                    echarts_graph_info["links"].append(EchartsUtility.create_normal_edge(subj_label, instance_label, pred_label, line_type="dashed", show_label=True))
+                options = EchartsUtility.create_normal_echart_options(echarts_graph_info, instance_label)
+                st.session_state.cached_echarts_options[instance_iri] = options
+            return options
+                
+        def render_selected_instance_echarts(options, height=400):
+            selected_iri = st_echarts(
+                options, height=f"{height}px",
+                events={
+                    "click": "function(params) { return params.value }",
+                }
+            )
+            return selected_iri
         
-        grid = st_grid([2, 1])
+        grid = st_grid([1, 1])
         main_col, info_graph_col = grid.container(), grid.container()
-        info_col = info_graph_col.container()
-        graph_col = info_graph_col.container()
+        # info_col = info_graph_col.container()
+        # graph_col = info_graph_col.container()
         type_list = self.classes_with_individuals
         type_local_names = [t.n3(self.ontology_graph.namespace_manager) for t in type_list]
         type_map = {tloc:tiri for tiri, tloc in zip(type_list, type_local_names)}
         
+        if st.session_state.get("insts_to_render", None) is None:
+            st.session_state.insts_to_render = {}
+          
         with main_col:
             search_class = st.selectbox("请选择需要查询的类", type_local_names, key="search_class")
             search_value = st.text_input("请输入查询关键词", key="search_instances")
@@ -301,11 +321,47 @@ class OntoViewerApp(RDFQueryApp):
                 selection_mode="single-row",
                 on_select="rerun"
             )
+            st.button("清空实例展示", type="primary", on_click=st.session_state.insts_to_render.clear)
+        
+        
         if event.selection["rows"]:
             selected_iri = instances_df["URIRef"][event.selection["rows"][0]]
-            with graph_col:
-                render_selected_instance_echarts(self.ontology_graph, selected_iri)
-            self.graph_status_subpage_display_metadata(selected_iri, info_col)
+            if selected_iri not in st.session_state.insts_to_render:
+                st.session_state.insts_to_render[selected_iri.n3(self.ontology_graph.namespace_manager)] = {
+                    "iri": selected_iri,
+                    "metadata": self._get_metadata_of_node(selected_iri),
+                    "echarts_options": create_selected_instance_echarts(self.ontology_graph, selected_iri)
+                }
+        
+        if st.session_state.insts_to_render:
+            with info_graph_col:
+                option_to_display = st.selectbox("instance_to_display",[f"{selected_label}" for selected_label in st.session_state.insts_to_render.keys()], label_visibility="collapsed")
+                # for ii, (selected_iri, info) in enumerate(st.session_state.insts_to_render.items()):
+                info = st.session_state.insts_to_render[option_to_display]
+                with st.popover(f"{option_to_display} 元数据", use_container_width=True):
+                    st.markdown(info["metadata"])
+                # selected_iri = render_selected_instance_echarts(info["echarts_options"], height=400)
+                selected_iri = st_echarts(
+                    info["echarts_options"], height="400px",
+                    events={
+                        "click": "function(params) { return params.value }",
+                    }
+                )
+                
+                if selected_iri:
+                    selected_label = rdflib.URIRef(selected_iri).n3(self.ontology_graph.namespace_manager)
+                    if selected_label not in st.session_state.insts_to_render:
+                        st.session_state.insts_to_render[selected_label] = {
+                            "iri": rdflib.URIRef(selected_iri),
+                            "metadata": self._get_metadata_of_node(selected_iri),
+                            "echarts_options": create_selected_instance_echarts(self.ontology_graph, selected_iri)
+                        }
+                    
+        
+            # self.graph_status_subpage_display_metadata(selected_iri, info_graph_col)
+            # with info_graph_col:
+            #     render_selected_instance_echarts(info_graph_col, self.ontology_graph, selected_iri)
+            
         
     def _graph_status_subpage_get_inheritance_map(self, echarts_graph_info, predicate: rdflib.URIRef, obj_range: List[str]):
         import numpy as np
@@ -528,7 +584,7 @@ class OntoViewerApp(RDFQueryApp):
 
             self.export_ontology_widget(container)
     
-    def graph_status_subpage_display_metadata(self, node_iri, container):
+    def _get_metadata_of_node(self, node_iri: rdflib.URIRef):
         node_iri = rdflib.URIRef(node_iri)
         metadata = ""
         metadata += f"**IRI:** {node_iri}\n\n"
@@ -577,11 +633,14 @@ class OntoViewerApp(RDFQueryApp):
             if is_transitive.askAnswer:
                 # st.markdown(f"**Transitive:** True")
                 metadata += f"**Transitive:** True\n\n"
-        # response_placeholder = st.empty()
+        return metadata
+    
+    def graph_status_subpage_display_metadata(self, node_iri, container):
+        metadata = self._get_metadata_of_node(node_iri)
         
         with container.container():
             st.write(f"**{node_iri.n3(self.ontology_graph.namespace_manager)}** \n\n")
-            with st.popover("元数据", use_container_width=True):
+            with st.popover(f"{node_iri.fragment} 元数据", use_container_width=True):
                 st.markdown(metadata)
         
     def parse_dul_owl_widget(self, container):
@@ -684,7 +743,7 @@ class OntoViewerApp(RDFQueryApp):
             sidetab1, sidetab2, sidebar3 = st.tabs(["基本信息 📝", "查询管理 📂", "开发者信息 👨‍💻"])
             
         self.graph_status_subpage_display_graph_basic_info_widget(sidetab1)
-        self.sparql_query_history_editor_widget(sidetab2,"")
+        
         self.display_creator_widget(sidebar3)
         
         # 占位： 主页面
@@ -721,6 +780,7 @@ class OntoViewerApp(RDFQueryApp):
         with maintab7.container():
             self.graph_status_subpage_render_original_file()
 
+        self.sparql_query_history_editor_widget(sidetab2,"")
     #endregion
     
     def test_widget(self):
@@ -763,6 +823,9 @@ class OntoViewerApp(RDFQueryApp):
         self._ontology_graph = st.session_state["ontology_graph"] 
         if st.session_state.get("triple_count") is None:
             st.session_state.triple_count = len(self.ontology_graph)
+        
+        if st.session_state.get("cached_echarts_options") is None:
+            st.session_state.cached_echarts_options = {}
         
         with st.sidebar:
             subpage_option = st.selectbox("子页面导航", ["图谱状态"])
