@@ -24,22 +24,23 @@ class RDFQueryApp(StreamlitBaseApp):
             self._query_history = self._initialize_history("query_history")
         return self._query_history
     
-    def add_query_to_history(self, natural_language_query: str, sparql_query: str = None, sparql_query_results: pd.DataFrame = None):
-        # 检查会话状态中是否存在SPARQL查询和查询结果
-        if sparql_query is not None and sparql_query_results is not None:
-            # 将用户的消息添加到查询历史中
-            # 用户的消息包括自然语言查询和SPARQL查询，使用Markdown格式展示SPARQL查询
-            self.query_history.add_user_message(
-                HumanMessage('{}\n\n```sparql\n{}\n```'.format(natural_language_query, sparql_query))
-            )
-            # 将AI的消息添加到查询历史中
-            # AI的消息是查询结果的JSON格式字符串，使用JSON格式化工具进行缩进
-            self.query_history.add_ai_message(
-                AIMessage("{}".format(sparql_query_results.to_json(indent=4)))
-            )
-            st.sidebar.info("Query added to history! 📝")
-        else:
-            st.sidebar.warning("No query or result to add to history. ⚠️")
+    def add_query_to_history(self, container, natural_language_query: str, sparql_query: str = None, sparql_query_results: pd.DataFrame = None):
+        with container.container():
+            # 检查会话状态中是否存在SPARQL查询和查询结果
+            if sparql_query is not None and sparql_query_results is not None:
+                # 将用户的消息添加到查询历史中
+                # 用户的消息包括自然语言查询和SPARQL查询，使用Markdown格式展示SPARQL查询
+                self.query_history.add_user_message(
+                    HumanMessage('{}\n\n```sparql\n{}\n```'.format(natural_language_query, sparql_query))
+                )
+                # 将AI的消息添加到查询历史中
+                # AI的消息是查询结果的JSON格式字符串，使用JSON格式化工具进行缩进
+                self.query_history.add_ai_message(
+                    AIMessage("{}".format(sparql_query_results.to_json(indent=4)))
+                )
+                st.info("Query added to history! 📝")
+            else:
+                st.warning("No query or result to add to history. ⚠️")
     
     def save_query_history(self):
         import datetime  # 导入datetime模块用于获取当前日期和时间
@@ -105,7 +106,8 @@ class RDFQueryApp(StreamlitBaseApp):
         with container:
             st.button("将当前查询写入历史", 
                     on_click=self.add_query_to_history, 
-                    kwargs={"natural_language_query": natural_language_query,
+                    kwargs={"container": container,
+                            "natural_language_query": natural_language_query,
                             "sparql_query": st.session_state.get("sparql_query", None),
                             "sparql_query_results": st.session_state.get("sparql_query_results", None)}, 
                     use_container_width=True)

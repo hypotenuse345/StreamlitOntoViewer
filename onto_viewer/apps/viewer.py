@@ -675,6 +675,10 @@ class OntoViewerApp(RDFQueryApp):
             self.display_rdf_data_widget(st.container(), self.ontology_graph)
     
     def graph_status_subpage(self):
+        with st.sidebar:
+            if st.button("重置查看器 🔄", type="secondary", use_container_width=True):
+                st.session_state["ontology_graph"] = None
+                st.rerun()
         # 占位：边栏
         with st.sidebar:
             sidetab1, sidetab2, sidebar3 = st.tabs(["基本信息 📝", "查询管理 📂", "开发者信息 👨‍💻"])
@@ -682,10 +686,7 @@ class OntoViewerApp(RDFQueryApp):
         self.graph_status_subpage_display_graph_basic_info_widget(sidetab1)
         self.sparql_query_history_editor_widget(sidetab2,"")
         self.display_creator_widget(sidebar3)
-        with st.sidebar:
-            if st.button("重置查看器 🔄", type="primary", use_container_width=True):
-                st.session_state["ontology_graph"] = None
-                st.rerun()
+        
         # 占位： 主页面
         main_col = st.container()
         with main_col:
