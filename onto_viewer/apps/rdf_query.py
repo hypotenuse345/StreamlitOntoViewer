@@ -6,12 +6,10 @@ import pandas as pd
 import json
 
 from langchain_community.chat_message_histories.streamlit import StreamlitChatMessageHistory
-from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, AIMessage
 
 from typing import List, Dict, Annotated, Any, Tuple, Optional
 from pydantic import BaseModel, Field, PrivateAttr, computed_field
-from rdflib import Graph, URIRef, Literal
 from .base import StreamlitBaseApp
 
 class RDFQueryApp(StreamlitBaseApp):
