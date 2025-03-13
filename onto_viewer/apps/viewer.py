@@ -12,9 +12,9 @@ import os
 
 from ..utils import EchartsUtility, GraphAlgoUtility
 
-from .base import StreamlitBaseApp
+from .rdf_query import RDFQueryApp
 
-class OntoViewerApp(StreamlitBaseApp):
+class OntoViewerApp(RDFQueryApp):
     """Ontology Viewer App"""
 
     #region Graph Status Page
@@ -621,19 +621,16 @@ class OntoViewerApp(StreamlitBaseApp):
                 st.session_state["ontology_graph"] = g
                 st.session_state["ontology_filename"] = os.path.splitext(selected)[0]
                 st.rerun()
-        
+    
     def export_ontology_widget(self, container):
+        @st.cache_data
+        def get_ontology_serialization():
+            return self.ontology_graph.serialize(format="turtle", encoding="utf-8").decode("utf-8")
         with container:
-            out_dir = st.text_input("输出目录", value="./dbs/rdflib_graph")
-            if not os.path.isdir(out_dir):
-                os.makedirs(out_dir)
-            if st.button("另存为", use_container_width=True):
-                with st.spinner('正在导出本体...', show_time=True):
-                    self.ontology_graph.serialize(
-                        destination=os.path.join(out_dir, "ontology.ttl"), 
-                        format="turtle",
-                        encoding="utf-8"
-                    )
+            st.download_button(
+                label="另存为", 
+                data=get_ontology_serialization(), 
+                file_name=f"ontology.ttl", mime="text/plain", use_container_width=True)
     
     @st.fragment
     def graph_status_subpage_visualization(self):
@@ -656,6 +653,22 @@ class OntoViewerApp(StreamlitBaseApp):
         if selected_iri:
             self.graph_status_subpage_display_metadata(selected_iri, info_col)
 
+    @st.fragment
+    def graph_status_subpage_render_query_form(self):
+        grid_layout = st_grid([1,1])
+        query_container, history_container = grid_layout.container(), grid_layout.container()
+        with query_container.container():
+            with st.form("SPARQL_Query"):
+                query_str = st.text_area(
+                        "Enter a SPARQL query", value="SELECT * WHERE { ?s ?p ?o } LIMIT 10" if st.session_state.get("sparql_query") is None else st.session_state["sparql_query"], 
+                        key="sparql_query_editor", help="SELECT * WHERE { ?s ?p ?o }", height=200)
+                to_query = st.form_submit_button("Run Query")
+                st.session_state["sparql_query"] = query_str
+            if to_query:
+                self.run_sparql_query_widget(self.ontology_graph, query_str)
+        generating_query_placeholder = st.empty()
+        self.sparql_query_history_container_widget(history_container.container())
+    
     def graph_status_subpage_render_original_file(self):
         hide_file = st.checkbox("隐藏原文件", value=True)
         if not hide_file:
@@ -664,10 +677,11 @@ class OntoViewerApp(StreamlitBaseApp):
     def graph_status_subpage(self):
         # 占位：边栏
         with st.sidebar:
-            sidetab1, sidetab2 = st.tabs(["基本信息 📝", "开发者信息 👨‍💻"])
+            sidetab1, sidetab2, sidebar3 = st.tabs(["基本信息 📝", "查询管理 📂", "开发者信息 👨‍💻"])
             
         self.graph_status_subpage_display_graph_basic_info_widget(sidetab1)
-        self.display_creator_widget(sidetab2)
+        self.sparql_query_history_editor_widget(sidetab2,"")
+        self.display_creator_widget(sidebar3)
         with st.sidebar:
             if st.button("重置查看器 🔄", type="primary", use_container_width=True):
                 st.session_state["ontology_graph"] = None
@@ -675,12 +689,13 @@ class OntoViewerApp(StreamlitBaseApp):
         # 占位： 主页面
         main_col = st.container()
         with main_col:
-            maintab1, maintab2, maintab3, maintab4, maintab5, maintab6 = st.tabs([
+            maintab1, maintab2, maintab3, maintab4, maintab5, maintab6, maintab7 = st.tabs([
                 "本体可视化 🌐", 
                 "命名空间 📚", 
                 "类 🏷️", 
                 "属性 🔗", 
                 "实例 📦", 
+                "SPARQL 查询 📡",
                 "原文件内容 📄"
             ])
             
@@ -700,6 +715,9 @@ class OntoViewerApp(StreamlitBaseApp):
             self.graph_status_subpage_render_instances()
         
         with maintab6.container():
+            self.graph_status_subpage_render_query_form()
+        
+        with maintab7.container():
             self.graph_status_subpage_render_original_file()
 
     #endregion

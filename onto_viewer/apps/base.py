@@ -4,6 +4,8 @@ import logging
 from typing import List, Dict, Annotated
 from pydantic import BaseModel, Field, PrivateAttr, computed_field
 
+from langchain_community.chat_message_histories.streamlit import StreamlitChatMessageHistory
+
 import rdflib
 
 class PersonInfo(BaseModel):
@@ -81,6 +83,10 @@ class StreamlitBaseApp(BaseModel):
                 # 将RDF图对象g序列化为Turtle格式的字符串，并通过wrap_turtle_string函数对其进行格式化
                 # 然后使用Streamlit的write函数在展开区域中显示格式化后的Turtle字符串
                 st.write(wrap_turtle_string(graph.serialize(format="turtle")))
+  
+    def _initialize_history(self, history_name="chat_history"):
+        """Initialize conversation history for demonstration."""
+        return StreamlitChatMessageHistory(history_name)
   
     def model_post_init(self, __context):
         logging.info("[APP] " +f" New app of {self.__class__.__name__} started ")
