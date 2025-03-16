@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_extras.grid import grid as st_grid
 import os
 import time
 import pandas as pd
@@ -102,7 +103,8 @@ class RDFQueryApp(StreamlitBaseApp):
         # Format the date and time as a string
         timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
         with container:
-            st.button("将当前查询写入历史", 
+            grid = st_grid([1,1,1])
+            grid.button("写入查询历史", 
                     on_click=self.add_query_to_history, 
                     kwargs={"container": container,
                             "natural_language_query": natural_language_query,
@@ -110,13 +112,13 @@ class RDFQueryApp(StreamlitBaseApp):
                             "sparql_query_results": st.session_state.get("sparql_query_results", None)}, 
                     use_container_width=True)
             # st.button("保存查询历史", on_click=self.save_query_history, use_container_width=True)
-            st.download_button(
+            grid.download_button(
                 label="保存查询历史", 
                 data=json.dumps([{"type": message.type, "data": message.model_dump()} 
                                  for message in self.query_history.messages], ensure_ascii=False, indent=4), 
                 file_name=f"query_history_{timestamp}.json", mime="application/json", use_container_width=True)
             
-            st.button("清空查询历史", on_click=self.query_history.clear, use_container_width=True, type="primary")
+            grid.button("清空查询历史", on_click=self.query_history.clear, use_container_width=True, type="primary")
 
     def sparql_query_history_container_widget(self, container):
         import json

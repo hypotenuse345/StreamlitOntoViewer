@@ -636,6 +636,7 @@ class OntoViewerApp(RDFQueryApp):
         return metadata
     
     def graph_status_subpage_display_metadata(self, node_iri, container):
+        node_iri = rdflib.URIRef(node_iri)
         metadata = self._get_metadata_of_node(node_iri)
         
         with container.container():
@@ -717,6 +718,7 @@ class OntoViewerApp(RDFQueryApp):
         grid_layout = st_grid([1,1])
         query_container, history_container = grid_layout.container(), grid_layout.container()
         with query_container.container():
+            history_management_placeholder = st.empty()
             with st.form("SPARQL_Query"):
                 query_str = st.text_area(
                         "Enter a SPARQL query", value="SELECT * WHERE { ?s ?p ?o } LIMIT 10" if st.session_state.get("sparql_query") is None else st.session_state["sparql_query"], 
@@ -725,6 +727,7 @@ class OntoViewerApp(RDFQueryApp):
                 st.session_state["sparql_query"] = query_str
             if to_query:
                 self.run_sparql_query_widget(self.ontology_graph, query_str)
+            self.sparql_query_history_editor_widget(history_management_placeholder.container(),"")
         generating_query_placeholder = st.empty()
         self.sparql_query_history_container_widget(history_container.container())
     
@@ -740,7 +743,7 @@ class OntoViewerApp(RDFQueryApp):
                 st.rerun()
         # 占位：边栏
         with st.sidebar:
-            sidetab1, sidetab2, sidebar3 = st.tabs(["基本信息 📝", "查询管理 📂", "开发者信息 👨‍💻"])
+            sidetab1, sidebar3 = st.tabs(["基本信息 📝", "开发者信息 👨‍💻"])
             
         self.graph_status_subpage_display_graph_basic_info_widget(sidetab1)
         
@@ -780,7 +783,7 @@ class OntoViewerApp(RDFQueryApp):
         with maintab7.container():
             self.graph_status_subpage_render_original_file()
 
-        self.sparql_query_history_editor_widget(sidetab2,"")
+        
     #endregion
     
     def test_widget(self):
