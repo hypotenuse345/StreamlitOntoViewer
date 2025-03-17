@@ -131,7 +131,7 @@ class RDFQueryApp(StreamlitBaseApp):
                         if msg.type == "ai" or msg.type == "assistant":
                             try:
                                 content = json.loads(msg.content)
-                                st.dataframe(pd.DataFrame(content), use_container_width=True, hide_index=True)
+                                st.dataframe(pd.DataFrame(content), use_container_width=True, hide_index=False)
                                 # st.write("```json\n{}\n```".format(msg.content))
                             except json.JSONDecodeError:
                                 st.error("Invalid JSON content")

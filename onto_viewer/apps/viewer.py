@@ -725,6 +725,7 @@ class OntoViewerApp(RDFQueryApp):
                         key="sparql_query_editor", help="SELECT * WHERE { ?s ?p ?o }", height=200)
                 to_query = st.form_submit_button("Run Query")
                 st.session_state["sparql_query"] = query_str
+                st.code(f"{query_str}", language="sparql")
             if to_query:
                 self.run_sparql_query_widget(self.ontology_graph, query_str)
             self.sparql_query_history_editor_widget(history_management_placeholder.container(),"")
